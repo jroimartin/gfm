@@ -1,4 +1,3 @@
 TODO
 ====
 - Refactoring: Remove unnecessary global vars, create a new type, etc.
-- Use templates instead of fmt.Sprintf to compose the e-mail.
