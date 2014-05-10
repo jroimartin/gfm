@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/smtp"
 	"os"
 	"sync"
+	"text/template"
 	"time"
 
 	rss "github.com/jteeuwen/go-pkg-rss"
@@ -45,7 +47,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Println("Reading profile...")
+	log.Println("Reading profile")
 	f, err := ioutil.ReadFile(flag.Arg(0))
 	if err != nil {
 		log.Fatalln(err)
@@ -54,7 +56,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	log.Println("Reading history...")
+	log.Println("Reading history")
 	f, err = ioutil.ReadFile(profile.HistFile)
 	if err == nil {
 		json.Unmarshal(f, &history)
@@ -65,7 +67,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	log.Println("Fetching feeds...")
+	log.Println("Fetching feeds")
 	for _, url := range profile.Feeds {
 		go fetch(url)
 	}
@@ -114,26 +116,29 @@ func itemHandler(feed *rss.Feed, ch *rss.Channel, newItems []*rss.Item) {
 }
 
 func mail(ch *rss.Channel, item *rss.Item) error {
-	subject := fmt.Sprintf("Subject: %s [%s] %s\n",
-		profile.SubjectPrefix, ch.Title, item.Title)
-	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n";
-	body := fmt.Sprintf("<b>Title</b>: %s<br>\n", item.Title)
-	if date, err := item.ParsedPubDate(); err == nil {
-		body += fmt.Sprintf("<b>Date</b>: %v<br>\n", date)
+	date, _ := item.ParsedPubDate()
+	data := struct {
+		SubjectPrefix, ChanTitle, ItemTitle string
+		Date                                time.Time
+		Links                               []*rss.Link
+		Description                         string
+		Content                             *rss.Content
+	}{profile.SubjectPrefix, ch.Title, item.Title, date,
+		item.Links, item.Description, item.Content}
+
+	t, err := template.New("mail").Parse(mailTmpl)
+	if err != nil {
+		return err
 	}
-	body += fmt.Sprintf("<b>Links:</b><br>\n")
-	for _, link := range item.Links {
-		body += fmt.Sprintf("  - %s<br>\n", link.Href)
-	}
-	body += fmt.Sprintf("<b>Description:</b><br>\n%s<br>\n", item.Description)
-	if item.Content != nil {
-		body += fmt.Sprintf("<b>Content:</b><br>\n%s", item.Content.Text)
+	msg := new(bytes.Buffer)
+	if err := t.Execute(msg, data); err != nil {
+		return err
 	}
 
-	log.Println("Sending e-mail...", subject)
+	log.Printf("Sending e-mail: [%s] %s", ch.Title, item.Title)
 	auth := smtp.PlainAuth("", profile.SmtpUser, profile.SmtpPass, profile.SmtpHost)
-	err := smtp.SendMail(profile.SmtpAddr, auth, profile.SrcEmail,
-		[]string{profile.DstEmail}, []byte(subject+mime+body))
+	err = smtp.SendMail(profile.SmtpAddr, auth, profile.SrcEmail,
+		[]string{profile.DstEmail}, msg.Bytes())
 	if err != nil {
 		return err
 	}
@@ -141,7 +146,7 @@ func mail(ch *rss.Channel, item *rss.Item) error {
 }
 
 func writeHist() {
-	log.Println("Updating history file...")
+	log.Println("Updating history file")
 	m, err := json.Marshal(history)
 	if err != nil {
 		errChan <- err
@@ -152,3 +157,17 @@ func writeHist() {
 func usage() {
 	fmt.Fprintln(os.Stderr, "usage: gfm profile_file")
 }
+
+const mailTmpl = `Subject: {{.SubjectPrefix}} [{{.ChanTitle}}] {{.ItemTitle}}
+MIME-version: 1.0;
+Content-Type: text/html; charset="UTF-8";
+
+<b>Title:</b> {{.ItemTitle}}<br>
+{{if not .Date.IsZero}}<b>Date:</b> {{.Date.Format "2 January 2006 15:04"}}<br>{{end}}
+<b>Links:</b><br>
+{{range .Links}}
+  - {{.Href}}<br>
+{{end}}
+{{if .Description}}<b>Description:</b><br>{{.Description}}<br>{{end}}
+{{if .Content}}<b>Content:</b><br>{{.Content.Text}}{{end}}
+`
