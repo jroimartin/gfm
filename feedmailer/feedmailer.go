@@ -156,9 +156,11 @@ Content-Type: text/html; charset="UTF-8";
 
 <b>Title:</b> {{.ItemTitle}}<br>
 {{if not .Date.IsZero}}<b>Date:</b> {{.Date.Format "2 January 2006 15:04"}}<br>{{end}}
+{{if .Links}}
 <b>Links:</b><br>
 {{range .Links}}
   - {{.Href}}<br>
+{{end}}
 {{end}}
 {{if .Description}}<b>Description:</b><br>{{.Description}}<br>{{end}}
 {{if .Content}}<b>Content:</b><br>{{.Content.Text}}{{end}}`
