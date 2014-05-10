@@ -1,5 +1,5 @@
-GFM - Go Feeds Mailer
-=====================
+GFM - Go Feed Mailer
+====================
 
 Service that checks for updates on your RSS feeds and send them to you by e-mail.
 
