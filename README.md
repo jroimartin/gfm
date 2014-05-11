@@ -25,7 +25,7 @@ Profile example
 		"FetchTimeout": 5,
 		"HistFile": "profile_history",
 		"Feeds": [
-			"http://www.reddit.com/r/golang/.rss",
+			"http://blog.golang.org/feed.atom",
 			"http://blog.gopheracademy.com/feed.atom"
 		]
 	}
