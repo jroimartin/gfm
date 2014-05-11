@@ -9,7 +9,7 @@ Installation
 
 Usage
 -----
-	$ gfm profile_file
+	$ gfm profile_file &> profile.log &
 
 Profile example
 ---------------
