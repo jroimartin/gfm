@@ -20,7 +20,7 @@ type profile struct {
 	SmtpPass      string
 	SmtpHost      string
 	SrcEmail      string
-	DstEmail      string
+	DstEmails     []string
 	SubjectPrefix string
 	FetchTimeout  int
 	HistFile      string
@@ -106,7 +106,9 @@ func (fm *FeedMailer) itemHandler(feed *rss.Feed, ch *rss.Channel, newItems []*r
 	if !lastUpdate.IsZero() {
 		fm.mutex.Lock()
 		fm.history[feed.Url] = lastUpdate
-		fm.updateHistory()
+		if err := fm.updateHistory(); err != nil {
+			fm.ErrChan <- err
+		}
 		fm.mutex.Unlock()
 	}
 }
@@ -134,20 +136,23 @@ func (fm *FeedMailer) mail(ch *rss.Channel, item *rss.Item) error {
 	log.Printf("Sending e-mail: [%s] %s", ch.Title, item.Title)
 	auth := smtp.PlainAuth("", fm.prof.SmtpUser, fm.prof.SmtpPass, fm.prof.SmtpHost)
 	err = smtp.SendMail(fm.prof.SmtpAddr, auth, fm.prof.SrcEmail,
-		[]string{fm.prof.DstEmail}, msg.Bytes())
+		fm.prof.DstEmails, msg.Bytes())
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (fm *FeedMailer) updateHistory() {
+func (fm *FeedMailer) updateHistory() error {
 	log.Println("Updating history file")
 	buf, err := json.Marshal(fm.history)
 	if err != nil {
-		fm.ErrChan <- err
+		return err
 	}
-	ioutil.WriteFile(fm.prof.HistFile, buf, 0600)
+	if err := ioutil.WriteFile(fm.prof.HistFile, buf, 0600); err != nil {
+		return err
+	}
+	return nil
 }
 
 const mailTmpl = `Subject: {{.SubjectPrefix}} [{{.ChanTitle}}] {{.ItemTitle}}

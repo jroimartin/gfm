@@ -20,7 +20,7 @@ Profile example
 		"SmtpPass": "password",
 		"SmtpHost": "smtp.example.com",
 		"SrcEmail": "src@example.com",
-		"DstEmail": "dst@example.com",
+		"DstEmails": ["dst1@example.com", "dst2@example.com"],
 		"SubjectPrefix": "[RSS]",
 		"FetchTimeout": 5,
 		"HistFile": "profile_history",
