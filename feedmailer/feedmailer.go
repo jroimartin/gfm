@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/smtp"
 	"os"
-	"sync"
 	"text/template"
 	"time"
 
@@ -27,16 +26,22 @@ type profile struct {
 	Feeds         []string
 }
 
+type histItem struct {
+	url        string
+	lastUpdate time.Time
+}
+
 type FeedMailer struct {
-	ErrChan chan error
-	prof    profile
-	history map[string]time.Time
-	mutex   sync.Mutex
+	ErrChan  chan error
+	histChan chan histItem
+	prof     profile
+	history  map[string]time.Time
 }
 
 func NewFeedMailer() *FeedMailer {
 	fm := &FeedMailer{}
 	fm.ErrChan = make(chan error)
+	fm.histChan = make(chan histItem)
 	fm.history = make(map[string]time.Time)
 	return fm
 }
@@ -61,6 +66,8 @@ func (fm *FeedMailer) Start(file string) error {
 	} else {
 		return err
 	}
+
+	go fm.updateHistory()
 
 	log.Println("Fetching feeds")
 	for _, url := range fm.prof.Feeds {
@@ -104,12 +111,7 @@ func (fm *FeedMailer) itemHandler(feed *rss.Feed, ch *rss.Channel, newItems []*r
 	}
 
 	if !lastUpdate.IsZero() {
-		fm.mutex.Lock()
-		fm.history[feed.Url] = lastUpdate
-		if err := fm.updateHistory(); err != nil {
-			fm.ErrChan <- err
-		}
-		fm.mutex.Unlock()
+		fm.histChan <- histItem{feed.Url, lastUpdate}
 	}
 }
 
@@ -143,16 +145,19 @@ func (fm *FeedMailer) mail(ch *rss.Channel, item *rss.Item) error {
 	return nil
 }
 
-func (fm *FeedMailer) updateHistory() error {
-	log.Println("Updating history file")
-	buf, err := json.Marshal(fm.history)
-	if err != nil {
-		return err
+func (fm *FeedMailer) updateHistory() {
+	for {
+		hist := <-fm.histChan
+		log.Println("Updating history file")
+		fm.history[hist.url] = hist.lastUpdate
+		buf, err := json.Marshal(fm.history)
+		if err != nil {
+			fm.ErrChan <- err
+		}
+		if err := ioutil.WriteFile(fm.prof.HistFile, buf, 0600); err != nil {
+			fm.ErrChan <- err
+		}
 	}
-	if err := ioutil.WriteFile(fm.prof.HistFile, buf, 0600); err != nil {
-		return err
-	}
-	return nil
 }
 
 const mailTmpl = `Subject: {{.SubjectPrefix}} [{{.ChanTitle}}] {{.ItemTitle}}
