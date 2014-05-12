@@ -126,18 +126,14 @@ func (fm *FeedMailer) mail(ch *rss.Channel, item *rss.Item) error {
 	}{fm.prof.SubjectPrefix, ch.Title, item.Title, date,
 		item.Links, item.Description, item.Content}
 
-	t, err := template.New("mail").Parse(mailTmpl)
-	if err != nil {
-		return err
-	}
 	msg := &bytes.Buffer{}
-	if err := t.Execute(msg, data); err != nil {
+	if err := mailTemplate.Execute(msg, data); err != nil {
 		return err
 	}
 
 	log.Printf("Sending e-mail: [%s] %s", ch.Title, item.Title)
 	auth := smtp.PlainAuth("", fm.prof.SmtpUser, fm.prof.SmtpPass, fm.prof.SmtpHost)
-	err = smtp.SendMail(fm.prof.SmtpAddr, auth, fm.prof.SrcEmail,
+	err := smtp.SendMail(fm.prof.SmtpAddr, auth, fm.prof.SrcEmail,
 		fm.prof.DstEmails, msg.Bytes())
 	if err != nil {
 		return err
@@ -160,7 +156,9 @@ func (fm *FeedMailer) updateHistory() {
 	}
 }
 
-const mailTmpl = `Subject: {{.SubjectPrefix}} [{{.ChanTitle}}] {{.ItemTitle}}
+var mailTemplate = template.Must(template.New("mail").Parse(mailMessage))
+
+const mailMessage = `Subject: {{.SubjectPrefix}} [{{.ChanTitle}}] {{.ItemTitle}}
 MIME-version: 1.0;
 Content-Type: text/html; charset="UTF-8";
 
