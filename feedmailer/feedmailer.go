@@ -3,6 +3,7 @@ package feedmailer
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/smtp"
@@ -81,7 +82,7 @@ func (fm *FeedMailer) fetch(url string) {
 	feed := rss.New(fm.prof.FetchTimeout, true, fm.chanHandler, fm.itemHandler)
 	for {
 		if err := feed.Fetch(url, nil); err != nil {
-			fm.ErrChan <- err
+			fmt.Fprintln(os.Stderr, err)
 		}
 		<-time.After(time.Duration(feed.SecondsTillUpdate()) * time.Second)
 	}
