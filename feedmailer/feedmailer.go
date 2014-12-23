@@ -61,8 +61,7 @@ func (fm *FeedMailer) Start(file string) error {
 	if err == nil {
 		json.Unmarshal(f, &fm.history)
 	} else if os.IsNotExist(err) {
-		log.Printf("History file (%s) not found, it will be created",
-			fm.prof.HistFile)
+		log.Printf("History file (%s) not found, it will be created", fm.prof.HistFile)
 	} else {
 		return err
 	}
