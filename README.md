@@ -1,19 +1,18 @@
-GFM - Go Feed Mailer
-====================
+# GFM - Go Feed Mailer
 
 Service that checks for updates on your RSS feeds and send them to you by e-mail.
 
-Installation
-------------
-	$ go get github.com/jroimartin/gfm
+## Installation
 
-Usage
------
-	$ gfm profile_file &> profile.log &
+`$ go get github.com/jroimartin/gfm`
 
-Profile example
----------------
-	$ cat profile_example
+## Usage
+
+`$ gfm profile_file &> profile.log &`
+
+## Profile example
+
+```json
 	{
 		"SmtpAddr": "smtp.example.com:587",
 		"SmtpUser": "username",
@@ -29,3 +28,4 @@ Profile example
 			"http://blog.gopheracademy.com/feed.atom"
 		]
 	}
+```
